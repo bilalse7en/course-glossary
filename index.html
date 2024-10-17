@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Glossary Code Generator</title>
+    <!-- Bootstrap 5.0.2 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+<style>
+    body {
+        background-color: #1e1e2d;
+        color: white;
+    }
+    h1, h2 {
+        color: #f8f9fa;
+    }
+    .form-control {
+        background-color: #2a2a40;
+        color: white;
+        border: none;
+    }
+    .form-control:focus {
+        background-color: #2a2a40;
+        color: white;
+        border-color: #6c757d;
+        box-shadow: none;
+    }
+    .btn-primary {
+        background: linear-gradient(180deg, #007bff, #260064);
+        border: none;
+    }
+    .btn-primary:hover {
+        background: linear-gradient(180deg, #260064, #007bff);
+    }
+    .btn-success {
+        background: linear-gradient(180deg, #09ad30, #003b0d);
+        border: none;
+    }
+    .btn-success:hover {
+        background: linear-gradient(180deg, #003b0d, #09ad30);
+    }
+    .btn-secondary {
+        background: linear-gradient(180deg, #707070, #2b2b2b);
+        border: none;
+    }
+    .btn-secondary:hover {
+        background: linear-gradient(180deg, #2b2b2b, #707070);
+    }
+    .btn-outline-primary {
+        border-color: #007bff;
+        color: white;
+    }
+    .btn-outline-primary:hover {
+        background-color: #007bff;
+        color: white;
+    }
+    textarea {
+        background-color: #2a2a40;
+        color: white;
+        border: none;
+    }
+    textarea::placeholder {
+        color: #ced4da;
+    }
+</style>
+</head>
+<body>
+
+    <div class="container mt-5">
+        <h1 class="mb-4 text-center">Glossary Code Generator</h1>
+        
+        <!-- Row for File Upload and Code Generator -->
+        <div class="row">
+            <!-- Column for File Upload and Buttons -->
+            <div class="col-md-6">
+                <!-- File Upload -->
+                <div class="mb-3">
+                    <label for="fileInput" class="form-label h2 mb-4">Upload a DOCX file</label>
+                    <hr>
+                    <input class="form-control" type="file" id="fileInput" accept=".docx" />
+                </div>
+    
+                <div class="d-grid gap-2 d-md-block mb-3">
+                    <button class="btn btn-primary btn-lg me-2" onclick="uploadFile()">Upload File</button>
+                    <button class="btn btn-success btn-lg me-2" onclick="generateGlossary()">Generate Glossary Code</button>
+                    <button class="btn btn-secondary btn-lg" onclick="copyToClipboard()">Copy Code</button>
+                </div>
+            </div>
+    
+            <!-- Column for Generated Code -->
+            <div class="col-md-6">
+                <label class="mb-4 h2">Generated Code:</label>
+                <hr>
+                <textarea class="form-control" id="generatedCode" rows="10" readonly></textarea>
+            </div>
+        </div>
+    </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js"></script>
+<script>
+    // Upload and read the DOCX file
+    function uploadFile() {
+        const fileInput = document.getElementById('fileInput');
+        const file = fileInput.files[0];
+
+        if (!file) {
+            alert("Please select a file to upload.");
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const arrayBuffer = event.target.result;
+            mammoth.convertToHtml({ arrayBuffer: arrayBuffer })
+                .then(result => {
+                    const html = result.value; // The HTML extracted
+                    parseGlossaryData(html);
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert('Error reading the file. Please try again.');
+                });
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    // Parse the extracted glossary data
+ // Parse the extracted glossary data from a table
+function parseGlossaryData(data) {
+    // Create a temporary DOM element to parse the HTML
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = data;
+
+    // Log the HTML to see its structure
+    console.log("Extracted HTML:", data);
+
+    // Initialize an array to hold glossary items
+    const glossaryItems = [];
+
+    // Find all tables in the extracted HTML
+    const tables = tempDiv.getElementsByTagName('table');
+    if (tables.length > 0) {
+        const rows = tables[0].getElementsByTagName('tr'); // Get rows from the first table
+
+        // Loop through the rows to extract words and definitions
+        for (let i = 1; i < rows.length; i++) { // Start from 1 to skip the header row
+            const cells = rows[i].getElementsByTagName('td'); // Get cells in the current row
+            if (cells.length === 2) { // Check if there are two columns
+                const term = cells[0].innerText.trim(); // First column for the word
+                const definition = cells[1].innerHTML.trim(); // Second column for the definition
+
+                // Only push to glossaryItems if term and definition exist
+                if (term && definition) {
+                    glossaryItems.push({ term: term, definition: definition });
+                }
+            }
+        }
+    } else {
+        alert("No tables found in the document.");
+        return; // Exit if no tables are present
+    }
+
+    if (glossaryItems.length === 0) {
+        alert("No glossary terms found.");
+    } else {
+        alert("Glossary data extracted successfully!");
+    }
+    
+    // Store parsed items in a hidden input for later use
+    document.getElementById('inputData').value = JSON.stringify(glossaryItems);
+}
+
+
+    // Generate the glossary HTML code
+    function generateGlossary() {
+        const input = document.getElementById('inputData').value.trim();
+        const glossaryItems = JSON.parse(input);
+
+        // Create a dictionary to hold glossary items
+        const glossaryDict = {};
+
+        // Process each term and definition
+        glossaryItems.forEach(item => {
+            const term = item.term.trim();
+            const definition = item.definition.trim();
+            const initial = term.charAt(0).toUpperCase();
+
+            // Initialize the dictionary entry if it doesn't exist
+            if (!glossaryDict[initial]) {
+                glossaryDict[initial] = [];
+            }
+            glossaryDict[initial].push({ term, definition });
+        });
+
+        // Build buttons and items HTML
+        let buttonsHtml = '';
+        let itemsHtml = '';
+
+        // Create buttons for each alphabet
+        for (let charCode = 65; charCode <= 90; charCode++) {
+            const letter = String.fromCharCode(charCode);
+            buttonsHtml += `<button class="glossaryBtn btn btn-outline-primary m-1" onclick="openItem('${letter}')">${letter}</button>\n`;
+            itemsHtml += `<div id="${letter}" class="result-container glosary-item" style="display: ${letter === 'A' ? 'block' : 'none'};">\n`;
+
+            if (glossaryDict[letter] && glossaryDict[letter].length > 0) {
+                glossaryDict[letter].forEach(item => {
+                    itemsHtml += `
+                    <h2>${item.term}</h2>
+                    <div>${item.definition}</div>\n`; // Output the HTML definition directly within a <div>
+                });
+            } else {
+                itemsHtml += `<h2>${letter}</h2><p>No Result Found</p>\n`;
+            }
+            itemsHtml += `</div>\n`;
+        }
+
+        // Prepare the final output HTML
+        const output = `
+<div class="custom-glossary">
+    <script>
+        function openItem(glossaryItem) {
+            var items = document.getElementsByClassName("result-container");
+            for (var i = 0; i < items.length; i++) {
+                items[i].style.display = "none"; // Hide all items
+            }
+            document.getElementById(glossaryItem).style.display = "block"; // Show the selected item
+        }
+    <\/script>
+    <div class="container">
+        <div class="glossaryBtnMain alphabet-buttons mb-3">
+            ${buttonsHtml}
+        </div>
+        ${itemsHtml}
+    </div>
+</div>`;
+
+        document.getElementById('generatedCode').value = output; // Output the generated code
+    }
+
+    // Copy the generated code to clipboard
+    function copyToClipboard() {
+        const code = document.getElementById('generatedCode').value;
+        navigator.clipboard.writeText(code)
+            .then(() => {
+                alert('Code copied to clipboard!');
+            })
+            .catch(err => {
+                console.error('Could not copy text: ', err);
+            });
+    }
+</script>
+
+<!-- Hidden input to store parsed lines -->
+<input type="hidden" id="inputData" />
+
+<!-- Bootstrap 5.0.2 JS (Optional for tooltips, modals, etc.) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+
+</body>
+</html>
